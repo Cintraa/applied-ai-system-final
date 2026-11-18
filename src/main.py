@@ -1,11 +1,15 @@
 """
-Command line runner for the Music Recommender Simulation (VibeFinder 1.0).
+Command line runner for VibeFinder 2.0 (built on the Project 3 Music Recommender Simulation).
 
 Usage:
     python -m src.main                 # run every test profile, top 5 each
     python -m src.main --k 3           # change how many songs are shown
     python -m src.main --profile "Chill Lofi"
     python -m src.main --experiment    # weight shift: energy x2, genre x0.5
+    python -m src.main --genre lofi --mood chill --energy 0.35 --acoustic yes
+
+Every recommendation now goes through the reliability layer (src/reliability.py):
+input guardrails, a conflict check, a confidence score, and logging.
 """
 
 import argparse
@@ -19,6 +23,7 @@ try:
         max_score,
         recommend_songs,
     )
+    from src.reliability import reliable_recommend
 except ModuleNotFoundError:  # running as `python src/main.py`
     from recommender import (  # type: ignore
         DEFAULT_WEIGHTS,
@@ -27,6 +32,7 @@ except ModuleNotFoundError:  # running as `python src/main.py`
         max_score,
         recommend_songs,
     )
+    from reliability import reliable_recommend  # type: ignore
 
 SONGS_PATH = "data/songs.csv"
 LINE = "=" * 64
@@ -56,6 +62,12 @@ ADVERSARIAL_PROFILES: Dict[str, Dict] = {
     "Dead Center (energy only)": {"energy": 0.5},
 }
 
+# Final project: inputs the reliability layer should refuse or abstain on
+GUARDRAIL_PROFILES: Dict[str, Dict] = {
+    "Nonsense Taste (polka/spooky)": {"genre": "polka", "mood": "spooky", "energy": 0.5},
+    "Broken Input (energy 1.7)": {"genre": "pop", "mood": "happy", "energy": 1.7},
+}
+
 
 def describe_prefs(prefs: Dict) -> str:
     """Turn a prefs dict into a short one-line summary."""
@@ -64,7 +76,8 @@ def describe_prefs(prefs: Dict) -> str:
         if prefs.get(key):
             parts.append(f"{key}={prefs[key]}")
     if prefs.get("energy") is not None:
-        parts.append(f"energy={prefs['energy']:.2f}")
+        energy = prefs["energy"]
+        parts.append(f"energy={energy:.2f}" if isinstance(energy, (int, float)) else f"energy={energy!r}")
     if prefs.get("likes_acoustic") is not None:
         parts.append(f"likes_acoustic={prefs['likes_acoustic']}")
     return " | ".join(parts)
@@ -72,19 +85,27 @@ def describe_prefs(prefs: Dict) -> str:
 
 def print_recommendations(name: str, prefs: Dict, songs: List[Dict], k: int,
                           weights: Dict[str, float] = DEFAULT_WEIGHTS) -> None:
-    """Print one profile's top k songs with scores and reasons."""
-    best = max_score(prefs, weights)
+    """Run one profile through the reliability layer and print the result."""
+    result = reliable_recommend(prefs, songs, k=k, weights=weights)
     print(LINE)
     print(f"Profile: {name}")
     print(f"Prefs:   {describe_prefs(prefs)}")
+    if result.status != "rejected" and result.prefs != prefs:
+        print(f"Cleaned: {describe_prefs(result.prefs)}")
+    print(f"Status:  {result.status.upper()}   Confidence: {result.confidence:.2f}")
+    print(f"         {result.message}")
+    for warning in result.warnings:
+        print(f"  ! {warning}")
     print(THIN)
-    for rank, (song, score, explanation) in enumerate(
-        recommend_songs(prefs, songs, k=k, weights=weights), start=1
-    ):
-        header = f"#{rank}  {song['title']} - {song['artist']}"
-        print(f"{header:<48}Score: {score:.2f} / {best:.2f}")
-        for reason in explanation.split("; "):
-            print(f"      - {reason}")
+    if result.recommendations:
+        best = max_score(result.prefs, weights)
+        for rank, (song, score, explanation) in enumerate(result.recommendations, start=1):
+            header = f"#{rank}  {song['title']} - {song['artist']}"
+            print(f"{header:<48}Score: {score:.2f} / {best:.2f}")
+            for reason in explanation.split("; "):
+                print(f"      - {reason}")
+    else:
+        print("  (no songs returned)")
     print()
 
 
@@ -110,12 +131,25 @@ def main() -> None:
     parser.add_argument("--profile", help="run a single profile by name")
     parser.add_argument("--experiment", action="store_true",
                         help="compare baseline weights vs. energy x2 / genre x0.5")
+    parser.add_argument("--genre", help="custom profile: favorite genre")
+    parser.add_argument("--mood", help="custom profile: favorite mood")
+    parser.add_argument("--energy", help="custom profile: target energy 0-1")
+    parser.add_argument("--acoustic", help="custom profile: likes acoustic (yes/no)")
     args = parser.parse_args()
 
     songs = load_songs(SONGS_PATH)
     print(f"Loaded songs: {len(songs)}\n")
 
+    if args.genre or args.mood or args.energy or args.acoustic:
+        custom = {"genre": args.genre, "mood": args.mood, "energy": args.energy,
+                  "likes_acoustic": args.acoustic}
+        print_recommendations("Custom", {k: v for k, v in custom.items() if v is not None},
+                              songs, args.k)
+        return
+
     all_profiles = {**PROFILES, **ADVERSARIAL_PROFILES}
+    if not args.experiment:  # the experiment compares raw weights, so skip guardrail demos
+        all_profiles.update(GUARDRAIL_PROFILES)
     if args.profile:
         if args.profile not in all_profiles:
             print(f"Unknown profile. Pick one of: {', '.join(all_profiles)}")
