@@ -1,0 +1,17 @@
+#   Case                                        Expected        Got             Conf  Result
+----------------------------------------------------------------------------------------------
+1   Default Pop/Happy                           ok              ok              0.91  PASS
+2   Chill Lofi                                  ok              ok              0.94  PASS
+3   Deep Intense Rock                           ok              ok              0.90  PASS
+4   Messy input is cleaned ('  LoFi ', 'CHILL') ok              ok              0.94  PASS
+5   Sad but Hyped (conflict)                    low_confidence  low_confidence  0.78  PASS
+6   Ghost Genre (k-pop)                         low_confidence  low_confidence  0.50  PASS
+7   Nonsense taste (polka/spooky)               abstained       abstained       0.23  PASS
+8   Energy out of range (1.7)                   rejected        rejected        0.00  PASS
+9   Energy not a number ('loud')                rejected        rejected        0.00  PASS
+10  Empty profile                               rejected        rejected        0.00  PASS
+11  Too many songs (k=50)                       rejected        rejected        0.00  PASS
+12  Similar label: indie pop fan wants 'pop'    ok              ok              0.91  FAIL
+----------------------------------------------------------------------------------------------
+11/12 cases passed | average confidence (non-rejected): 0.76
+  FAIL case 12: status was right, but behavior check failed: wanted #2 is Rooftop Lights (happy indie pop); got top 3 = Sunrise City, Gym Hero, Rooftop Lights

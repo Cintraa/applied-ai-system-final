@@ -1,296 +1,325 @@
-# 🎵 Music Recommender Simulation
+# 🎵 VibeFinder 2.0: A Music Recommender That Knows When It's Wrong
 
-## Project Summary
+VibeFinder 2.0 recommends songs from a taste profile and explains every pick. It also checks its own work: it rejects broken input, warns when your taste isn't in the catalog, catches conflicting preferences, gives every list a confidence score, and refuses to recommend when it would only be guessing.
 
-**VibeFinder 1.0** is a small, content-based music recommender I built to understand how apps like Spotify or TikTok decide what to play next. It loads a 20-song catalog from `data/songs.csv`, compares every song to a user's "taste profile" (favorite genre, favorite mood, target energy, and whether they like acoustic sound), gives each song a score with a list of reasons, and prints the top *k* songs in the terminal.
+## Base Project
 
-The goal was not to beat Spotify. It was to see, step by step, how plain data turns into something that *feels* like a personal recommendation, and where that process quietly goes wrong (bias, filter bubbles, and a small dataset).
+**Original project: Music Recommender Simulation (Module 3), "VibeFinder 1.0."** It was a content-based recommender that scored a 20-song catalog against a user's favorite genre, mood, target energy, and acoustic preference, then printed the top *k* songs with plain-English reasons. Its model card documented several failures: it gave no warning for genres not in the catalog (k-pop), it put a 0.30-energy song at #1 for a "sad but energy 0.9" listener, and it never said how much to trust a list. The original README is preserved at [`docs/project3_README.md`](docs/project3_README.md).
 
----
+## Why This Matters
 
-## How The System Works
+VibeFinder 1.0 always returned five songs with the same confidence, whether the match was perfect or meaningless. A recommender that answers confidently when it shouldn't trains users to stop trusting it. Version 2.0 turns the failures I found in Project 3 into checks the system runs on every request.
 
-### How real recommenders do it
+## The AI Feature: A Reliability and Testing System
 
-Big platforms mix two ideas. **Collaborative filtering** uses other people's behavior: if listeners who replay the same songs as me also love a track I've never heard, it gets suggested to me, even if the system knows nothing about how the song sounds. **Content-based filtering** uses the song itself: genre, mood, tempo, energy, valence, acousticness, and (at Spotify's scale) audio embeddings and lyrics. Real systems use both, plus a huge amount of behavior data: explicit signals like likes, follows, and playlist adds, and implicit signals like skips, replays, how long you listen, and time of day. They usually work in two stages: first pull a few hundred candidates out of millions, then rank those candidates with a model trained on what people actually ended up playing.
+Built into the main recommendation path (`src/reliability.py`). Every profile run by `src/main.py` goes through it.
 
-My version keeps only the content-based part. There are no other users, so there is no collaborative filtering. Instead, it focuses on the core loop every recommender shares: **score each song, then rank the scores.** It puts *who the song is* (genre) first, *how it feels* (mood) second, and *how intense it is* (energy) as a smooth tiebreaker that rewards songs that are **close** to what I want, not just louder.
-
-### Features used
-
-**`Song`** (one row of `data/songs.csv`)
-
-| Feature | Type | Used in score? |
+| Step | What it does | Project 3 problem it fixes |
 |---|---|---|
-| `genre` | text | ✅ exact match |
-| `mood` | text | ✅ exact match |
-| `energy` | 0.0–1.0 | ✅ closeness to target |
-| `acousticness` | 0.0–1.0 | ✅ if the user has an acoustic preference |
-| `tempo_bpm`, `valence`, `danceability` | numbers | ❌ loaded, not scored yet (future work) |
-| `id`, `title`, `artist` | identifiers | ❌ display only |
+| **Input guardrails** | Rejects energy outside 0-1 or not a number, empty profiles, non-text genres, k outside 1-10. Cleans input (`"  LoFi "` becomes `lofi`, `"yes"` becomes `True`). | Bad input used to run silently or crash |
+| **Catalog warnings** | Warns when a genre or mood isn't in the catalog, or when no genre or mood was given. | "Silent failure on unknown genres" |
+| **Conflict check** | Flags when the #1 song is 0.40 or more away from the target energy. | "Conflicting preferences break it" (Sad but Hyped) |
+| **Confidence score** | 0-1 score: `0.5 × top fit + 0.2 × list fit + 0.3 × catalog coverage`. | No way to tell a great list from filler |
+| **Decision** | 0.70 or higher with no conflict returns **OK**. 0.45 to 0.70, or any conflict, returns **LOW_CONFIDENCE** (songs plus warnings). Below 0.45 returns **ABSTAINED** (no songs). | Always returned 5 songs |
+| **Logging** | Every request, warning, rejection, and decision goes to `logs/recommender.log`. | No record of what happened |
+| **Evaluation harness** | `src/evaluate.py` runs 12 predefined cases and prints a pass/fail scorecard, plus the reason for every failure. | Only manual checks before |
 
-**`UserProfile`** (taste profile)
+**Stretch feature attempted:** Test Harness / Evaluation Script (`src/evaluate.py`), shown under [Reliability and Guardrail Results](#reliability-and-guardrail-results).
 
-| Field | Dict key used by `score_song` | Example |
-|---|---|---|
-| `favorite_genre` | `genre` | `"pop"` |
-| `favorite_mood` | `mood` | `"happy"` |
-| `target_energy` | `energy` | `0.8` |
-| `likes_acoustic` | `likes_acoustic` (optional) | `False` |
+## Architecture Overview
 
-Every key is optional, so I can also test weird profiles (for example, energy only).
-
-### Algorithm Recipe
-
-**Scoring Rule (judges one song):**
-
-| Rule | Points |
-|---|---|
-| Genre matches (case-insensitive) | **+2.0** |
-| Mood matches (case-insensitive) | **+1.0** |
-| Energy closeness | **+1.5 × (1 − \|song energy − target energy\|)** |
-| Acoustic fit | **+0.5 × acousticness** if the user likes acoustic, **+0.5 × (1 − acousticness)** if not |
-
-The best possible score is **5.0** when all four preferences are set. Every rule that fires adds a reason string like `genre match: pop (+2.00)`, so each recommendation explains itself.
-
-Why these weights:
-- **Genre (2.0) > mood (1.0):** genre is the strongest identity signal. Someone who wants lofi almost never wants metal, even if both are "focused." Mood shifts more from day to day.
-- **Energy uses distance, not raw value.** If I multiplied by raw energy, the loudest song would always win. Using `1 − gap` means a song at 0.82 scores almost full points for a 0.80 target, while a 0.30 song scores much less. This lets the same rule serve chill users and gym users.
-- **Energy (1.5) sits between genre and mood**, so a close energy match can push a no-genre song above a genre match with the wrong vibe, but only when the gap is large.
-- **Acoustic (0.5) is a small nudge.** It separates "chill acoustic" from "chill electronic" without overriding everything else.
-
-**Ranking Rule (orders the whole list):** score every song in the catalog with `score_song`, sort from highest to lowest (song title breaks ties so the output is always the same), and return the top *k*.
-
-We need both rules because they answer different questions. The scoring rule asks, "How good is *this one* song for this user?" The ranking rule asks, "Out of *everything*, which songs go first?" A score alone means nothing until you compare it against all the other scores.
-
-### Data flow
+Diagram source: [`diagrams/architecture.mmd`](diagrams/architecture.mmd). The same diagram is embedded below so it renders on GitHub.
 
 ```mermaid
-flowchart LR
-    A["User Prefs<br/>genre, mood, energy, likes_acoustic"] --> C
-    B["data/songs.csv<br/>20 songs"] -->|load_songs| C
-    C{{"The Loop<br/>score_song judges every song"}} --> D["(score, reasons)<br/>for each song"]
-    D -->|"sorted, highest first"| E["Top K Recommendations"]
-    E --> F["CLI: title, score, reasons"]
+flowchart TD
+    U["User taste profile<br/>genre, mood, energy, likes_acoustic, k"] --> G
+
+    subgraph REL["Reliability layer: src/reliability.py"]
+        G{"Input guardrails<br/>validate_prefs + validate_k"}
+        G -- "broken input" --> REJ["REJECTED<br/>clear error, no songs"]
+        G -- "valid (cleaned, maybe warnings)" --> S
+        S["Scoring + ranking<br/>src/recommender.py (VibeFinder 1.0)<br/>score_song -> recommend_songs"] --> CF
+        CF["Conflict check<br/>is #1 far from target energy?"] --> CS
+        CS["Confidence scorer<br/>0.5 top fit + 0.2 list fit + 0.3 coverage"] --> D
+        D{"Decision"}
+        D -- "conf >= 0.70, no conflict" --> OK["OK<br/>songs + reasons"]
+        D -- "0.45 to 0.70, or conflict" --> LOW["LOW_CONFIDENCE<br/>songs + warnings"]
+        D -- "conf < 0.45" --> AB["ABSTAINED<br/>no songs, ask user to refine"]
+    end
+
+    CSV[("data/songs.csv<br/>20 songs")] --> S
+    CSV --> G
+
+    G -. "requests, warnings, rejections" .-> LOG[("logs/recommender.log")]
+    D -. "status + confidence" .-> LOG
+
+    subgraph TEST["Testing and human review"]
+        PT["pytest<br/>28 unit tests"]
+        EV["Evaluation harness<br/>src/evaluate.py, 12 cases"]
+        H["Human reviewer<br/>reads reasons, warnings, logs"]
+    end
+
+    PT -. "verifies" .-> REL
+    EV -. "scorecard" .-> REL
+    OK --> H
+    LOW --> H
+    LOG --> H
 ```
 
-In text: **Input** (user prefs plus CSV) → **Process** (loop over all 20 songs, and `score_song` returns `(score, reasons)` for each one) → **Output** (`sorted(...)` by score, slice `[:k]`, print).
+A request flows **input guardrails → scoring (VibeFinder 1.0's `recommend_songs`, unchanged) → conflict check → confidence scorer → decision**. The catalog feeds both the scorer and the guardrails, which need to know which genres and moods exist. Logging records each step. Humans stay in the loop in three places. Every song shows the reasons behind its score. LOW_CONFIDENCE results come with warnings a person can judge. The pytest suite and evaluation harness check the system's behavior before any change ships.
 
-### Dataset
+```
+src/
+  recommender.py   scoring + ranking (from Project 3, unchanged)
+  reliability.py   NEW: guardrails, conflict check, confidence, decision, logging
+  main.py          CLI, now routed through the reliability layer
+  evaluate.py      NEW: evaluation harness (12 cases)
+tests/
+  test_recommender.py   8 tests from Project 3
+  test_reliability.py   NEW: 20 tests for the reliability layer
+data/songs.csv     20-song catalog
+logs/              saved run outputs, test results, sample log
+diagrams/          Mermaid architecture source
+docs/              original Project 3 README
+```
 
-The starter catalog had 10 songs across 7 genres. I added **10 songs** (ids 11–20) in genres and moods that weren't covered: hip-hop/confident, classical/peaceful, metal/angry, reggae/relaxed, country/nostalgic, r&b/romantic, edm/energetic, folk/sad, latin/playful, and blues/melancholic. Now there are **17 genres and 15 moods**, and energy runs from 0.18 to 0.97. I kept the same 10 columns so the `Song` dataclass and the tests didn't break. `danceability` and `acousticness` were already in the file.
+## Setup Instructions
 
-### Profile check (can it tell "intense rock" from "chill lofi"?)
-
-Yes. Even with genre and mood removed, the energy targets (0.90 vs 0.35) are far enough apart that the two lists don't share a single song (see `model_card.md`). The profile is still **narrow**, though. It has one genre and one mood, so someone who likes "pop *or* indie pop" or "happy *and* chill" can't express that. It also ignores tempo and valence completely.
-
-### Biases I expected before coding
-
-- **Genre gate:** at +2.0, genre could bury a great song that matches my mood and energy but is labeled differently (like "indie pop" vs "pop").
-- **Catalog imbalance:** lofi has 3 songs, while most genres have 1. Lofi fans get a full list of real matches, and everyone else gets "filler."
-- **Energy as filler:** every song gets *some* energy points, so when nothing else matches, the list becomes "whatever is closest in energy," whether or not it fits the vibe.
-
----
-
-## Getting Started
-
-### Setup
-
-1. Create and activate a virtual environment:
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate        # Mac / Linux / Git Bash
-   .\.venv\Scripts\Activate.ps1     # Windows PowerShell
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the app:
-
-   ```bash
-   python -m src.main                         # all 8 test profiles, top 5 each
-   python -m src.main --profile "Chill Lofi"  # one profile
-   python -m src.main --k 3                   # change list length
-   python -m src.main --experiment            # weight-shift experiment
-   ```
-
-### Running Tests
+Requires Python 3.10+.
 
 ```bash
-pytest
+git clone https://github.com/Cintraa/applied-ai-system-final.git
+cd applied-ai-system-final
+python -m venv .venv
+source .venv/bin/activate          # Mac / Linux / Git Bash
+.\.venv\Scripts\Activate.ps1       # Windows PowerShell
+python -m pip install --upgrade pip
+pip install -r requirements.txt     # only pytest; the app itself uses the standard library
 ```
 
-`tests/test_recommender.py` has 8 tests. They cover the OOP `Recommender`, CSV loading and number conversion, the score/reasons output, energy closeness (closer beats louder), case-insensitive genre matching, sorting and `k`, and the weight-shift experiment.
+Run it:
 
----
+```bash
+python -m src.main                                     # all 10 profiles through the reliability layer
+python -m src.main --profile "Ghost Genre (k-pop)"     # one profile
+python -m src.main --genre lofi --mood chill --energy 0.35 --acoustic yes   # your own profile
+python -m src.main --experiment                        # Project 3 weight-shift experiment
+python -m src.evaluate                                 # evaluation scorecard
+python -m pytest -v                                    # 28 unit tests
+```
 
-## Sample Recommendation Output
+## Sample Interactions
 
-Default "pop/happy" profile (`python -m src.main --profile "Default Pop/Happy"`):
+Every block below is the exact terminal output of the command shown. The output for all 10 built-in profiles is in [`logs/sample_run_all_profiles.txt`](logs/sample_run_all_profiles.txt).
+
+**1. Clear profile with messy input: cleaned, confident, explained**
+
+The guardrail cleans `"  LoFi "`, `CHILL`, `'0.35'`, and `yes` before scoring (see the `Cleaned:` line). Every song shows the reasons behind its score.
 
 ```
+$ python -m src.main --genre "  LoFi " --mood CHILL --energy 0.35 --acoustic yes --k 3
 Loaded songs: 20
 
 ================================================================
-Profile: Default Pop/Happy
-Prefs:   genre=pop | mood=happy | energy=0.80
+Profile: Custom
+Prefs:   genre=  LoFi  | mood=CHILL | energy='0.35' | likes_acoustic=yes
+Cleaned: genre=lofi | mood=chill | energy=0.35 | likes_acoustic=True
+Status:  OK   Confidence: 0.97
+         Recommendations ready.
 ----------------------------------------------------------------
-#1  Sunrise City - Neon Echo                    Score: 4.47 / 4.50
-      - genre match: pop (+2.00)
-      - mood match: happy (+1.00)
-      - energy 0.82 vs target 0.80 (+1.47)
-#2  Gym Hero - Max Pulse                        Score: 3.31 / 4.50
-      - genre match: pop (+2.00)
-      - energy 0.93 vs target 0.80 (+1.30)
-#3  Rooftop Lights - Indigo Parade              Score: 2.44 / 4.50
-      - mood match: happy (+1.00)
-      - energy 0.76 vs target 0.80 (+1.44)
-#4  Fuego Lento - Los Satelites                 Score: 1.50 / 4.50
-      - energy 0.80 vs target 0.80 (+1.50)
-#5  Concrete Verses - Blockline                 Score: 1.47 / 4.50
-      - energy 0.78 vs target 0.80 (+1.47)
+#1  Library Rain - Paper Lanterns               Score: 4.93 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.35 vs target 0.35 (+1.50)
+      - acoustic sound fit (+0.43)
+#2  Midnight Coding - LoRoom                    Score: 4.75 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.42 vs target 0.35 (+1.40)
+      - acoustic sound fit (+0.35)
+#3  Focus Flow - LoRoom                         Score: 3.81 / 5.00
+      - genre match: lofi (+2.00)
+      - energy 0.40 vs target 0.35 (+1.42)
+      - acoustic sound fit (+0.39)
 ```
 
-This matches what I'd expect. *Sunrise City* is the only song that is pop, happy, and around 0.8 energy, so it wins with 4.47 out of 4.50. The surprise is #2. *Gym Hero* is a workout track (mood: intense), but it still beats the happy *Rooftop Lights*, because +2.0 for "pop" outweighs +1.0 for "happy." I dig into this in the model card.
-
-Outputs for all 8 profiles are in [`model_card.md`](model_card.md#7-evaluation).
-
----
-
-## Experiments You Tried
-
-### 1. Weight shift: double energy (1.5 → 3.0), halve genre (2.0 → 1.0)
-
-`python -m src.main --experiment`
+**2. Genre not in the catalog: warns and lowers confidence** (in Project 3 this failed silently)
 
 ```
+$ python -m src.main --profile "Ghost Genre (k-pop)"
 Loaded songs: 20
 
 ================================================================
-Profile: Default Pop/Happy  (genre=pop | mood=happy | energy=0.80)
+Profile: Ghost Genre (k-pop)
+Prefs:   genre=k-pop | mood=happy | energy=0.70
+Status:  LOW_CONFIDENCE   Confidence: 0.50
+         Weak or conflicting match. Treat these as suggestions, not picks.
+  ! genre 'k-pop' is not in the catalog, so no song can earn genre points
 ----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Sunrise City (4.47)                 Sunrise City (4.94)
-#2    Gym Hero (3.31)                     Rooftop Lights (3.88)
-#3    Rooftop Lights (2.44)               Gym Hero (3.61)
-#4    Fuego Lento (1.50)                  Fuego Lento (3.00)
-#5    Concrete Verses (1.47)              Concrete Verses (2.94)
-
-================================================================
-Profile: High-Energy Pop  (genre=pop | mood=intense | energy=0.95 | likes_acoustic=False)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Gym Hero (4.95)                     Gym Hero (5.42)
-#2    Sunrise City (3.71)                 Storm Runner (4.33)
-#3    Storm Runner (2.89)                 Sunrise City (4.02)
-#4    Pulse Reactor (1.99)                Pulse Reactor (3.49)
-#5    Iron Cathedral (1.96)               Iron Cathedral (3.42)
-
-================================================================
-Profile: Chill Lofi  (genre=lofi | mood=chill | energy=0.35 | likes_acoustic=True)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Library Rain (4.93)                 Library Rain (5.43)
-#2    Midnight Coding (4.75)              Midnight Coding (5.14)
-#3    Focus Flow (3.81)                   Spacewalk Thoughts (4.25)
-#4    Spacewalk Thoughts (2.85)           Focus Flow (4.24)
-#5    Coffee Shop Stories (1.92)          Coffee Shop Stories (3.38)
-
-================================================================
-Profile: Deep Intense Rock  (genre=rock | mood=intense | energy=0.90 | likes_acoustic=False)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Storm Runner (4.93)                 Storm Runner (5.42)
-#2    Gym Hero (2.93)                     Gym Hero (4.38)
-#3    Pulse Reactor (1.92)                Pulse Reactor (3.34)
-#4    Iron Cathedral (1.88)               Iron Cathedral (3.27)
-#5    Sunrise City (1.79)                 Sunrise City (3.17)
-
-================================================================
-Profile: Sad but Hyped (conflict)  (genre=folk | mood=sad | energy=0.90)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Paper Boats (3.60)                  Paper Boats (3.20)
-#2    Storm Runner (1.49)                 Storm Runner (2.97)
-#3    Gym Hero (1.46)                     Gym Hero (2.91)
-#4    Pulse Reactor (1.43)                Pulse Reactor (2.85)
-#5    Iron Cathedral (1.40)               Iron Cathedral (2.79)
-
-================================================================
-Profile: Ghost Genre (k-pop)  (genre=k-pop | mood=happy | energy=0.70)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Rooftop Lights (2.41)               Rooftop Lights (3.82)
-#2    Sunrise City (2.32)                 Sunrise City (3.64)
-#3    Night Drive Loop (1.43)             Night Drive Loop (2.85)
-#4    Concrete Verses (1.38)              Concrete Verses (2.76)
-#5    Fuego Lento (1.35)                  Fuego Lento (2.70)
-
-================================================================
-Profile: Acoustic Metalhead  (genre=metal | mood=angry | energy=0.95 | likes_acoustic=True)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Iron Cathedral (4.49)               Iron Cathedral (4.96)
-#2    Pulse Reactor (1.51)                Pulse Reactor (3.01)
-#3    Gym Hero (1.50)                     Gym Hero (2.96)
-#4    Storm Runner (1.49)                 Storm Runner (2.93)
-#5    Fuego Lento (1.40)                  Sunrise City (2.70)
-
-================================================================
-Profile: Dead Center (energy only)  (energy=0.50)
-----------------------------------------------------------------
-Rank  Baseline (genre 2.0, energy 1.5)    Experiment (genre 1.0, energy 3.0)
-#1    Island Time (1.47)                  Island Time (2.94)
-#2    Velvet Hours (1.47)                 Velvet Hours (2.94)
-#3    Dusty Backroads (1.43)              Dusty Backroads (2.85)
-#4    Midnight Coding (1.38)              Midnight Coding (2.76)
-#5    Focus Flow (1.35)                   Focus Flow (2.70)
+#1  Rooftop Lights - Indigo Parade              Score: 2.41 / 4.50
+      - mood match: happy (+1.00)
+      - energy 0.76 vs target 0.70 (+1.41)
+#2  Sunrise City - Neon Echo                    Score: 2.32 / 4.50
+      - mood match: happy (+1.00)
+      - energy 0.82 vs target 0.70 (+1.32)
+#3  Night Drive Loop - Neon Echo                Score: 1.43 / 4.50
+      - energy 0.75 vs target 0.70 (+1.42)
+#4  Concrete Verses - Blockline                 Score: 1.38 / 4.50
+      - energy 0.78 vs target 0.70 (+1.38)
+#5  Fuego Lento - Los Satelites                 Score: 1.35 / 4.50
+      - energy 0.80 vs target 0.70 (+1.35)
 ```
 
-**What changed**
-- **Default Pop/Happy:** *Rooftop Lights* (indie pop, happy) jumped over *Gym Hero* (pop, intense). This is **more accurate** for a "happy" listener. Gym Hero only ranked high because of its genre label.
-- **High-Energy Pop:** *Storm Runner* (rock, intense, 0.91) passed *Sunrise City* (pop, happy, 0.82). This also feels more accurate, since a high-energy listener cares more about intensity than the pop label.
-- **Chill Lofi:** *Spacewalk Thoughts* (ambient, chill) passed *Focus Flow* (lofi, focused) by 0.01. It's a toss-up, and both fit.
-- **Sad but Hyped:** *Paper Boats* (folk, sad, energy 0.30) stayed #1, but its lead shrank from 2.11 points to 0.23. One more nudge and the system would recommend metal to a sad-folk fan.
-- **Deep Intense Rock, Ghost Genre, Dead Center:** same order, just bigger numbers. Where genre wasn't deciding anything, changing its weight did nothing.
+**3. Conflicting preferences: caught by the conflict check**
 
-**Verdict:** the shift made results **more vibe-accurate** for profiles where mood and genre disagreed (happy vs. intense pop). It was **just different, or worse,** where genre is the main thing the user cares about. With energy worth 3 points out of 5.5, the system starts to behave like an energy dial. I kept the original weights as the default and saved this set as `EXPERIMENT_WEIGHTS` in `recommender.py`.
+Genre and mood both match, so the raw score looks fine (3.60/4.50). The conflict check sees that the #1 song is 0.60 away from the requested energy and downgrades the result.
 
-### 2. Stress test with 8 profiles
+```
+$ python -m src.main --profile "Sad but Hyped (conflict)"
+Loaded songs: 20
 
-Besides 4 normal listeners (Default Pop/Happy, High-Energy Pop, Chill Lofi, Deep Intense Rock), I wrote 4 **adversarial** profiles to try to trick the scoring:
+================================================================
+Profile: Sad but Hyped (conflict)
+Prefs:   genre=folk | mood=sad | energy=0.90
+Status:  LOW_CONFIDENCE   Confidence: 0.78
+         Weak or conflicting match. Treat these as suggestions, not picks.
+  ! preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+----------------------------------------------------------------
+#1  Paper Boats - The Quiet Pines               Score: 3.60 / 4.50
+      - genre match: folk (+2.00)
+      - mood match: sad (+1.00)
+      - energy 0.30 vs target 0.90 (+0.60)
+#2  Storm Runner - Voltline                     Score: 1.49 / 4.50
+      - energy 0.91 vs target 0.90 (+1.48)
+#3  Gym Hero - Max Pulse                        Score: 1.46 / 4.50
+      - energy 0.93 vs target 0.90 (+1.46)
+#4  Pulse Reactor - KYRO                        Score: 1.43 / 4.50
+      - energy 0.95 vs target 0.90 (+1.43)
+#5  Iron Cathedral - Grave Signal               Score: 1.40 / 4.50
+      - energy 0.97 vs target 0.90 (+1.40)
+```
 
-| Profile | Trick | What happened |
-|---|---|---|
-| Sad but Hyped | folk + sad, but energy 0.9 | Returned a 0.30-energy sad folk song at #1, then 4 loud songs that aren't sad at all |
-| Ghost Genre | asks for k-pop (not in catalog) | Genre points never fire, and it silently falls back to mood + energy with no warning |
-| Acoustic Metalhead | metal, but likes_acoustic = True | The acoustic preference is basically ignored (+0.01), because no loud acoustic songs exist |
-| Dead Center | energy 0.5 only, no genre/mood | Becomes "nearest energy," surfacing reggae/r&b/country songs no other profile ever sees |
+**4. Nothing matches: the system abstains instead of guessing**
 
----
+```
+$ python -m src.main --profile "Nonsense Taste (polka/spooky)"
+Loaded songs: 20
 
-## Limitations and Risks
+================================================================
+Profile: Nonsense Taste (polka/spooky)
+Prefs:   genre=polka | mood=spooky | energy=0.50
+Status:  ABSTAINED   Confidence: 0.23
+         Not confident enough to recommend anything. Try a genre or mood from the catalog.
+  ! genre 'polka' is not in the catalog, so no song can earn genre points
+  ! mood 'spooky' is not in the catalog, so no song can earn mood points
+----------------------------------------------------------------
+  (no songs returned)
+```
 
-- **Tiny catalog:** 20 songs, and 15 of 17 genres have exactly one song. After the genre match runs out, the rest of the list is filler.
-- **Exact string matching:** "indie pop" ≠ "pop," and "sad" ≠ "melancholic." The system has no idea genres or moods can be related.
-- **Over-favors genre:** a genre label is worth twice a mood match, so *Gym Hero* (intense workout pop) beats a happy song for a happy-pop user.
-- **Same loud songs for everyone with high energy:** *Gym Hero, Storm Runner, Pulse Reactor,* and *Iron Cathedral* show up for pop, rock, metal, *and* sad-folk users.
-- **No feedback loop:** it never learns from skips or replays, and it can't handle "I like two genres."
-- **Ignores** tempo, valence, danceability, lyrics, language, and artist variety.
+**5. Broken input: rejected by the guardrail**
 
-More detail is in the [model card](model_card.md).
+```
+$ python -m src.main --profile "Broken Input (energy 1.7)"
+Loaded songs: 20
 
----
+================================================================
+Profile: Broken Input (energy 1.7)
+Prefs:   genre=pop | mood=happy | energy=1.70
+Status:  REJECTED   Confidence: 0.00
+         Request rejected: energy must be between 0 and 1, got 1.7
+----------------------------------------------------------------
+  (no songs returned)
+
+$ python -m src.main --genre pop --energy loud
+Loaded songs: 20
+
+================================================================
+Profile: Custom
+Prefs:   genre=pop | energy='loud'
+Status:  REJECTED   Confidence: 0.00
+         Request rejected: energy must be a number from 0 to 1, got 'loud'
+----------------------------------------------------------------
+  (no songs returned)
+```
+
+## Reliability and Guardrail Results
+
+**Unit tests:** `python -m pytest -v`, **28 passed** (8 from Project 3 + 20 new). Full list: [`logs/test_results.txt`](logs/test_results.txt).
+
+```
+$ python -m pytest -q
+............................                                             [100%]
+28 passed in 0.03s
+```
+
+**Evaluation harness (stretch feature):** `python -m src.evaluate` runs 12 predefined cases. Each case checks the decision status *and* a behavior check written from the listener's point of view. Any failure prints the reason. Saved copy: [`logs/eval_results.txt`](logs/eval_results.txt).
+
+```
+$ python -m src.evaluate
+#   Case                                        Expected        Got             Conf  Result
+----------------------------------------------------------------------------------------------
+1   Default Pop/Happy                           ok              ok              0.91  PASS
+2   Chill Lofi                                  ok              ok              0.94  PASS
+3   Deep Intense Rock                           ok              ok              0.90  PASS
+4   Messy input is cleaned ('  LoFi ', 'CHILL') ok              ok              0.94  PASS
+5   Sad but Hyped (conflict)                    low_confidence  low_confidence  0.78  PASS
+6   Ghost Genre (k-pop)                         low_confidence  low_confidence  0.50  PASS
+7   Nonsense taste (polka/spooky)               abstained       abstained       0.23  PASS
+8   Energy out of range (1.7)                   rejected        rejected        0.00  PASS
+9   Energy not a number ('loud')                rejected        rejected        0.00  PASS
+10  Empty profile                               rejected        rejected        0.00  PASS
+11  Too many songs (k=50)                       rejected        rejected        0.00  PASS
+12  Similar label: indie pop fan wants 'pop'    ok              ok              0.91  FAIL
+----------------------------------------------------------------------------------------------
+11/12 cases passed | average confidence (non-rejected): 0.76
+  FAIL case 12: status was right, but behavior check failed: wanted #2 is Rooftop Lights (happy indie pop); got top 3 = Sunrise City, Gym Hero, Rooftop Lights
+```
+
+**Sample log.** Every request, warning, rejection, and decision is written to `logs/recommender.log`. Excerpt from [`logs/sample_recommender.log`](logs/sample_recommender.log):
+
+```
+2026-11-18 02:40:59,643 INFO request prefs={'genre': 'folk', 'mood': 'sad', 'energy': 0.9} k=5
+2026-11-18 02:40:59,643 WARNING conflict check: preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+2026-11-18 02:40:59,643 INFO decision=low_confidence confidence=0.78 returned=5
+2026-11-18 02:40:59,645 INFO request prefs={'genre': 'k-pop', 'mood': 'happy', 'energy': 0.7} k=5
+2026-11-18 02:40:59,645 WARNING guardrail warning: genre 'k-pop' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,645 INFO decision=low_confidence confidence=0.50 returned=5
+2026-11-18 02:40:59,647 INFO request prefs={'genre': 'metal', 'mood': 'angry', 'energy': 0.95, 'likes_acoustic': True} k=5
+2026-11-18 02:40:59,647 INFO decision=ok confidence=0.83 returned=5
+2026-11-18 02:40:59,649 INFO request prefs={'energy': 0.5} k=5
+2026-11-18 02:40:59,649 WARNING guardrail warning: no genre or mood given, so the list is ranked by energy alone
+2026-11-18 02:40:59,649 INFO decision=ok confidence=0.83 returned=5
+2026-11-18 02:40:59,651 INFO request prefs={'genre': 'polka', 'mood': 'spooky', 'energy': 0.5} k=5
+2026-11-18 02:40:59,651 WARNING guardrail warning: genre 'polka' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,651 WARNING guardrail warning: mood 'spooky' is not in the catalog, so no song can earn mood points
+2026-11-18 02:40:59,651 INFO decision=abstained confidence=0.23 returned=0
+2026-11-18 02:40:59,652 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 1.7} k=5
+2026-11-18 02:40:59,652 WARNING REJECTED by input guardrail: energy must be between 0 and 1, got 1.7
+```
+
+## Testing Summary
+
+- **What worked:** All 28 unit tests pass, including the 8 original Project 3 tests, so the reliability layer didn't break the base recommender. All 4 broken inputs were rejected with clear messages. The two adversarial profiles from Project 3 that failed silently (Ghost Genre, Sad but Hyped) are now flagged LOW_CONFIDENCE with an explanation, and a nonsense profile abstains at 0.23.
+- **What didn't:** Case 12 fails. A happy-pop listener at energy 0.76 still gets *Gym Hero* (pop, intense) at #2 instead of *Rooftop Lights* (indie pop, happy), at **0.91 confidence**. This is the "genre label beats actual vibe" problem from Project 3, and the reliability layer can't see it. Every score is high, so the system is confident.
+- **What I learned:** Confidence measures how well songs fit *the scoring rule*, not whether the scoring rule matches what the listener wants. Guardrails catch broken input and missing data, but they can't catch a design flaw in the weights. Only a test written from the user's point of view caught it.
+
+## Design Decisions and Trade-offs
+
+- **Wrap the Project 3 scorer instead of rewriting it.** `recommender.py` is unchanged, and its 8 tests still pass. The reliability layer sits around it, so either part can change on its own.
+- **Abstaining is allowed.** Returning nothing beats returning confident nonsense. The cost is that some users get no songs and have to rephrase.
+- **Warn, don't reject, for unknown genres.** A typo or a missing genre shouldn't crash the app, but the user should know why the results are weak.
+- **A conflict always downgrades to LOW_CONFIDENCE, even at 0.78.** Sad but Hyped's numbers look decent because genre and mood match. A separate rule was needed because the average hides the problem.
+- **No artist-diversity cap.** In this catalog, a one-song-per-artist cap would push *Focus Flow* (LoRoom) out of the Chill Lofi list, even though it's a real lofi match. The filter-bubble problem here comes from energy, not artists, so the cap would make results worse.
+- **Thresholds (0.70 and 0.45)** were tuned on these 20 songs and 12 cases. A bigger catalog would need retuning.
 
 ## Reflection
 
-[**Model Card**](model_card.md)
+Project 3 taught me that a recommender is "score everything, then sort." This project taught me that the harder question is *when not to answer*. The best part of the work wasn't new scoring logic. It was turning the failures I had written down in my Project 3 model card into checks the system runs on every request. The failing evaluation case taught me the most: a system can be 91% confident and still wrong, because confidence only measures what you thought to measure.
 
-Building this showed me that a recommender is really two small pieces: a rule that turns one song into a number, and a sort. Everything that feels "smart" comes from which features you choose and how much each is worth. Changing one weight from 2.0 to 1.0 changed what a happy-pop listener hears at #2, and nothing else in the code moved. Real platforms use far more data and learned weights, but the core loop is the same: features in, scores out, sort, show the top. Having each recommendation print its own reasons was the most useful thing I built. It made every weird result easy to debug.
+Responsible-AI reflection, limitations, and AI collaboration notes: [`model_card.md`](model_card.md).
 
-The bias part surprised me more than the code. My system never "decided" to favor anything, but because lofi has three songs and metal has one, a lofi fan gets three real matches while a metal fan gets one match and then EDM and pop. An imbalance in the dataset quietly turns into an imbalance in who gets good recommendations. At Spotify's scale, the same effect could keep pushing popular, well-labeled genres and make it harder for niche artists or listeners with mixed taste to be served well. That is a filter bubble built by accident.
+## Portfolio
+
+**Code:** https://github.com/Cintraa/applied-ai-system-final
+
+**What this project says about me as an AI engineer:** I care about whether an AI system deserves trust, not just whether it produces output. I took the failures I documented in my own Project 3 and turned them into guardrails, a confidence score, an abstain option, and an evaluation harness. I also kept a failing case in the final scorecard, because hiding it would make the system look better than it is. I want to build tools that explain their decisions, say "I'm not sure" when they should, and come with evidence that someone else can rerun.

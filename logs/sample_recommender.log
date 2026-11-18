@@ -1,0 +1,69 @@
+2026-11-18 02:40:59,632 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 0.8} k=5
+2026-11-18 02:40:59,632 INFO decision=ok confidence=0.91 returned=5
+2026-11-18 02:40:59,634 INFO request prefs={'genre': 'pop', 'mood': 'intense', 'energy': 0.95, 'likes_acoustic': False} k=5
+2026-11-18 02:40:59,635 INFO decision=ok confidence=0.92 returned=5
+2026-11-18 02:40:59,637 INFO request prefs={'genre': 'lofi', 'mood': 'chill', 'energy': 0.35, 'likes_acoustic': True} k=5
+2026-11-18 02:40:59,637 INFO decision=ok confidence=0.94 returned=5
+2026-11-18 02:40:59,640 INFO request prefs={'genre': 'rock', 'mood': 'intense', 'energy': 0.9, 'likes_acoustic': False} k=5
+2026-11-18 02:40:59,640 INFO decision=ok confidence=0.90 returned=5
+2026-11-18 02:40:59,643 INFO request prefs={'genre': 'folk', 'mood': 'sad', 'energy': 0.9} k=5
+2026-11-18 02:40:59,643 WARNING conflict check: preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+2026-11-18 02:40:59,643 INFO decision=low_confidence confidence=0.78 returned=5
+2026-11-18 02:40:59,645 INFO request prefs={'genre': 'k-pop', 'mood': 'happy', 'energy': 0.7} k=5
+2026-11-18 02:40:59,645 WARNING guardrail warning: genre 'k-pop' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,645 INFO decision=low_confidence confidence=0.50 returned=5
+2026-11-18 02:40:59,647 INFO request prefs={'genre': 'metal', 'mood': 'angry', 'energy': 0.95, 'likes_acoustic': True} k=5
+2026-11-18 02:40:59,647 INFO decision=ok confidence=0.83 returned=5
+2026-11-18 02:40:59,649 INFO request prefs={'energy': 0.5} k=5
+2026-11-18 02:40:59,649 WARNING guardrail warning: no genre or mood given, so the list is ranked by energy alone
+2026-11-18 02:40:59,649 INFO decision=ok confidence=0.83 returned=5
+2026-11-18 02:40:59,651 INFO request prefs={'genre': 'polka', 'mood': 'spooky', 'energy': 0.5} k=5
+2026-11-18 02:40:59,651 WARNING guardrail warning: genre 'polka' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,651 WARNING guardrail warning: mood 'spooky' is not in the catalog, so no song can earn mood points
+2026-11-18 02:40:59,651 INFO decision=abstained confidence=0.23 returned=0
+2026-11-18 02:40:59,652 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 1.7} k=5
+2026-11-18 02:40:59,652 WARNING REJECTED by input guardrail: energy must be between 0 and 1, got 1.7
+2026-11-18 02:40:59,706 INFO request prefs={'genre': '  LoFi ', 'mood': 'CHILL', 'energy': '0.35', 'likes_acoustic': 'yes'} k=3
+2026-11-18 02:40:59,706 INFO decision=ok confidence=0.97 returned=3
+2026-11-18 02:40:59,758 INFO request prefs={'genre': 'k-pop', 'mood': 'happy', 'energy': 0.7} k=3
+2026-11-18 02:40:59,758 WARNING guardrail warning: genre 'k-pop' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,758 INFO decision=low_confidence confidence=0.51 returned=3
+2026-11-18 02:40:59,808 INFO request prefs={'genre': 'folk', 'mood': 'sad', 'energy': 0.9} k=3
+2026-11-18 02:40:59,808 WARNING conflict check: preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+2026-11-18 02:40:59,808 INFO decision=low_confidence confidence=0.80 returned=3
+2026-11-18 02:40:59,859 INFO request prefs={'genre': 'polka', 'mood': 'spooky', 'energy': 0.5} k=5
+2026-11-18 02:40:59,859 WARNING guardrail warning: genre 'polka' is not in the catalog, so no song can earn genre points
+2026-11-18 02:40:59,859 WARNING guardrail warning: mood 'spooky' is not in the catalog, so no song can earn mood points
+2026-11-18 02:40:59,859 INFO decision=abstained confidence=0.23 returned=0
+2026-11-18 02:40:59,910 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 1.7} k=5
+2026-11-18 02:40:59,910 WARNING REJECTED by input guardrail: energy must be between 0 and 1, got 1.7
+2026-11-18 02:40:59,962 INFO request prefs={'genre': 'pop', 'energy': 'loud'} k=5
+2026-11-18 02:40:59,962 WARNING REJECTED by input guardrail: energy must be a number from 0 to 1, got 'loud'
+2026-11-18 02:41:00,011 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 0.8} k=5
+2026-11-18 02:41:00,012 INFO decision=ok confidence=0.91 returned=5
+2026-11-18 02:41:00,012 INFO request prefs={'genre': 'lofi', 'mood': 'chill', 'energy': 0.35, 'likes_acoustic': True} k=5
+2026-11-18 02:41:00,012 INFO decision=ok confidence=0.94 returned=5
+2026-11-18 02:41:00,012 INFO request prefs={'genre': 'rock', 'mood': 'intense', 'energy': 0.9, 'likes_acoustic': False} k=5
+2026-11-18 02:41:00,012 INFO decision=ok confidence=0.90 returned=5
+2026-11-18 02:41:00,013 INFO request prefs={'genre': '  LoFi ', 'mood': 'CHILL', 'energy': '0.35'} k=5
+2026-11-18 02:41:00,013 INFO decision=ok confidence=0.94 returned=5
+2026-11-18 02:41:00,013 INFO request prefs={'genre': 'folk', 'mood': 'sad', 'energy': 0.9} k=5
+2026-11-18 02:41:00,013 WARNING conflict check: preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+2026-11-18 02:41:00,013 INFO decision=low_confidence confidence=0.78 returned=5
+2026-11-18 02:41:00,013 INFO request prefs={'genre': 'k-pop', 'mood': 'happy', 'energy': 0.7} k=5
+2026-11-18 02:41:00,013 WARNING guardrail warning: genre 'k-pop' is not in the catalog, so no song can earn genre points
+2026-11-18 02:41:00,013 INFO decision=low_confidence confidence=0.50 returned=5
+2026-11-18 02:41:00,014 INFO request prefs={'genre': 'polka', 'mood': 'spooky', 'energy': 0.5} k=5
+2026-11-18 02:41:00,014 WARNING guardrail warning: genre 'polka' is not in the catalog, so no song can earn genre points
+2026-11-18 02:41:00,014 WARNING guardrail warning: mood 'spooky' is not in the catalog, so no song can earn mood points
+2026-11-18 02:41:00,014 INFO decision=abstained confidence=0.23 returned=0
+2026-11-18 02:41:00,014 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 1.7} k=5
+2026-11-18 02:41:00,014 WARNING REJECTED by input guardrail: energy must be between 0 and 1, got 1.7
+2026-11-18 02:41:00,014 INFO request prefs={'genre': 'pop', 'energy': 'loud'} k=5
+2026-11-18 02:41:00,014 WARNING REJECTED by input guardrail: energy must be a number from 0 to 1, got 'loud'
+2026-11-18 02:41:00,014 INFO request prefs={} k=5
+2026-11-18 02:41:00,014 WARNING REJECTED by input guardrail: give at least one of genre, mood, or energy
+2026-11-18 02:41:00,015 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 0.8} k=50
+2026-11-18 02:41:00,015 WARNING REJECTED by input guardrail: k must be between 1 and 10, got 50
+2026-11-18 02:41:00,015 INFO request prefs={'genre': 'pop', 'mood': 'happy', 'energy': 0.76} k=5
+2026-11-18 02:41:00,015 INFO decision=ok confidence=0.91 returned=5

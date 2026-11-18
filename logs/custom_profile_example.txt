@@ -1,0 +1,24 @@
+Loaded songs: 20
+
+================================================================
+Profile: Custom
+Prefs:   genre=  LoFi  | mood=CHILL | energy='0.35' | likes_acoustic=yes
+Cleaned: genre=lofi | mood=chill | energy=0.35 | likes_acoustic=True
+Status:  OK   Confidence: 0.97
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Library Rain - Paper Lanterns               Score: 4.93 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.35 vs target 0.35 (+1.50)
+      - acoustic sound fit (+0.43)
+#2  Midnight Coding - LoRoom                    Score: 4.75 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.42 vs target 0.35 (+1.40)
+      - acoustic sound fit (+0.35)
+#3  Focus Flow - LoRoom                         Score: 3.81 / 5.00
+      - genre match: lofi (+2.00)
+      - energy 0.40 vs target 0.35 (+1.42)
+      - acoustic sound fit (+0.39)
+

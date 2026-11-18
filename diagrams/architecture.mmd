@@ -1,0 +1,33 @@
+flowchart TD
+    U["User taste profile<br/>genre, mood, energy, likes_acoustic, k"] --> G
+
+    subgraph REL["Reliability layer: src/reliability.py"]
+        G{"Input guardrails<br/>validate_prefs + validate_k"}
+        G -- "broken input" --> REJ["REJECTED<br/>clear error, no songs"]
+        G -- "valid (cleaned, maybe warnings)" --> S
+        S["Scoring + ranking<br/>src/recommender.py (VibeFinder 1.0)<br/>score_song -> recommend_songs"] --> CF
+        CF["Conflict check<br/>is #1 far from target energy?"] --> CS
+        CS["Confidence scorer<br/>0.5 top fit + 0.2 list fit + 0.3 coverage"] --> D
+        D{"Decision"}
+        D -- "conf >= 0.70, no conflict" --> OK["OK<br/>songs + reasons"]
+        D -- "0.45 to 0.70, or conflict" --> LOW["LOW_CONFIDENCE<br/>songs + warnings"]
+        D -- "conf < 0.45" --> AB["ABSTAINED<br/>no songs, ask user to refine"]
+    end
+
+    CSV[("data/songs.csv<br/>20 songs")] --> S
+    CSV --> G
+
+    G -. "requests, warnings, rejections" .-> LOG[("logs/recommender.log")]
+    D -. "status + confidence" .-> LOG
+
+    subgraph TEST["Testing and human review"]
+        PT["pytest<br/>28 unit tests"]
+        EV["Evaluation harness<br/>src/evaluate.py, 12 cases"]
+        H["Human reviewer<br/>reads reasons, warnings, logs"]
+    end
+
+    PT -. "verifies" .-> REL
+    EV -. "scorecard" .-> REL
+    OK --> H
+    LOW --> H
+    LOG --> H

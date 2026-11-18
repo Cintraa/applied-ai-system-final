@@ -1,8 +1,10 @@
-# 🎧 Model Card: Music Recommender Simulation
+# 🎧 Model Card: VibeFinder 2.0 (Applied AI System)
+
+> **Final project update.** Sections 10-15 cover the reliability layer added for the final project: guardrails, conflict check, confidence scoring, abstention, logging, and evaluation. Sections 1-9 are the original Project 3 (VibeFinder 1.0) card, kept because they document the failures this version was built to catch.
 
 ## 1. Model Name
 
-**VibeFinder 1.0**, a content-based music recommender that runs in the terminal.
+**VibeFinder 2.0**, a content-based music recommender that runs in the terminal.
 
 ---
 
@@ -294,7 +296,7 @@ The system treats "is it pop?" as the most important question, worth 2 points, w
 
 ### Experiment: weight shift (energy ×2, genre ×0.5)
 
-The full side-by-side output is in the README under *Experiments You Tried*. In short:
+The full side-by-side output is in the archived Project 3 README ([`docs/project3_README.md`](docs/project3_README.md#experiments-you-tried)), and you can rerun it with `python -m src.main --experiment`. In short:
 - **More accurate:** Default Pop/Happy (*Rooftop Lights* passes *Gym Hero*) and High-Energy Pop (*Storm Runner* passes *Sunrise City*). The lists now follow the vibe more than the label.
 - **Just different:** Chill Lofi (*Spacewalk Thoughts* and *Focus Flow* swap, separated by 0.01).
 - **Riskier:** Sad but Hyped's #1 lead drops from 2.11 to 0.23 points, so the system is close to recommending metal to a sad-folk fan.
@@ -323,3 +325,72 @@ The full side-by-side output is in the README under *Experiments You Tried*. In 
 **What surprised me:** how much a short scoring function *feels* like a real recommendation, especially with the reasons printed underneath. "Library Rain, genre match, mood match, energy 0.35 vs target 0.35" honestly reads like something Spotify would say. It also surprised me that the feeling is fragile: one weight change, or one missing genre in the CSV, and it starts recommending gym music to someone who wants happy pop.
 
 **What I'd try next:** add fake listening history for ~50 simulated users and build a tiny collaborative filter ("users who liked *Library Rain* also liked..."), then blend it with this content-based score. I'd want to see if that fixes the "loud pack" problem or just creates a new bubble around whatever is most popular.
+
+
+---
+
+# Final Project: VibeFinder 2.0
+
+## 10. What Changed
+
+VibeFinder 2.0 keeps the Project 3 scoring rule unchanged and wraps it in a reliability layer (`src/reliability.py`):
+
+- **Input guardrails:** reject energy outside 0-1 or not a number, empty profiles, non-text genres, and k outside 1-10. Clean messy input (`"  LoFi "` becomes `lofi`).
+- **Catalog warnings:** warn when a genre or mood isn't in the catalog, or when only energy was given.
+- **Conflict check:** flag when the #1 song is 0.40 or more away from the target energy.
+- **Confidence score (0-1):** `0.5 × top fit + 0.2 × list fit + 0.3 × catalog coverage`.
+- **Decision:** OK (0.70 or higher, no conflict), LOW_CONFIDENCE (0.45-0.70, or any conflict), or ABSTAINED (below 0.45, returns no songs).
+- **Logging** of every request and decision to `logs/recommender.log`.
+- **Evaluation harness** (`src/evaluate.py`): 12 predefined cases. Each one checks the decision status and a behavior check written from the listener's point of view, and the harness prints the reason for any failure.
+- **Visible cleaning:** when the guardrail cleans an input, the CLI prints a `Cleaned:` line so the user can see exactly what was scored.
+
+## 11. Limitations and Biases
+
+- **Confidence measures fit to the rule, not to the listener.** A happy-pop listener gets *Gym Hero* (pop, intense) over *Rooftop Lights* (indie pop, happy) at 0.91 confidence. The genre-label bias from Section 6 is invisible to the reliability layer because every score is high.
+- **Catalog imbalance is still there.** Lofi has 3 songs and most genres have 1, so lofi fans get high confidence and a rock fan's list runs out of real matches after #1. The confidence score partly reflects this (list fit), but it can't add songs that don't exist.
+- **Exact string matching.** "hip hop" vs "hip-hop", or "sad" vs "melancholic", still get zero credit. The system now *warns* about unknown labels but doesn't suggest the close one.
+- **The thresholds are tuned to this data.** 0.70, 0.45, and the 0.40 energy gap were chosen using 20 songs and 12 test cases. They are not universal.
+- **Confidence depends on list length.** List fit is averaged over the *k* songs returned, so the same Sad but Hyped profile scores 0.80 at k=3 and 0.78 at k=5. The decision didn't change in any case I tested, but a borderline profile could flip between OK and LOW_CONFIDENCE just by asking for more songs.
+- **Energy-only profiles are allowed through as OK** (with a warning). The list fits the request, but it's ranked on one number, so it says little about real taste.
+
+## 12. Misuse and Prevention
+
+| Possible misuse | How the system responds |
+|---|---|
+| Malformed or extreme input to crash it or skew results (energy 1.7, "loud", k=50, empty profile) | Input guardrails reject it with a clear message. Every rejection is logged. |
+| Presenting weak or guessed results as real recommendations | Confidence score plus LOW_CONFIDENCE and ABSTAINED statuses. Every song still shows its reasons. |
+| Using it to rank artists for exposure or payouts | Out of scope (see Section 2). The catalog bias in Sections 6 and 11 would hurt underrepresented genres. |
+| Trusting a high confidence number blindly | This card documents that confidence can be high while the ranking is wrong (Section 11). A human should still read the reasons. |
+
+## 13. Testing Results
+
+- **Unit tests:** 28/28 pass (`python -m pytest -v`): 8 from Project 3 plus 20 for guardrails, the conflict check, confidence, and end-to-end decisions.
+- **Evaluation harness:** 11/12 cases pass (`python -m src.evaluate`). Average confidence on non-rejected cases is 0.76. The harness reports the one failure as: *status was right, but behavior check failed: wanted #2 is Rooftop Lights (happy indie pop); got top 3 = Sunrise City, Gym Hero, Rooftop Lights*.
+
+| Test input | Evaluation criteria | Result |
+|---|---|---|
+| Default Pop/Happy, Chill Lofi, Deep Intense Rock | Status OK, expected #1 song | Pass (0.91, 0.94, 0.90) |
+| `"  LoFi "`, `"CHILL"`, energy `"0.35"` | Input cleaned, status OK, lofi #1 | Pass (0.94) |
+| folk / sad / energy 0.9 | LOW_CONFIDENCE with a conflict warning | Pass (0.78) |
+| k-pop / happy / 0.7 | LOW_CONFIDENCE with an unknown-genre warning | Pass (0.50) |
+| polka / spooky / 0.5 | ABSTAINED, no songs | Pass (0.23) |
+| energy 1.7, energy "loud", empty profile, k=50 | REJECTED with a clear message | Pass (4/4) |
+| pop / happy / 0.76 | *Rooftop Lights* at #2 | **Fail**: *Gym Hero* at #2, confidence 0.91 |
+
+## 14. What Surprised Me While Testing
+
+The failing case. I expected the confidence score to drop whenever the results were bad, but case 12 scored 0.91, one of the highest, while still putting a gym song above a happy song for a happy-pop listener. The system is confident because it's measuring how well songs fit its *own* rule, and the rule itself is what's biased toward genre labels. The guardrails catch broken input and missing data, but only a test written from the listener's point of view caught a flaw in the design.
+
+## 15. AI Collaboration
+
+**How I used AI on this project:** I used my AI coding assistant as a design partner and a second reviewer, not as an autopilot. I gave it my Project 3 model card and asked which documented failures could become automatic checks, then had it help draft the guardrail functions, the confidence formula, and pytest cases. I ran every suggestion through the tests and the evaluation harness myself, and I set the thresholds (0.70, 0.45, and the 0.40 energy gap) by reading real outputs for all 12 cases.
+
+**A suggestion I accepted:** turning my Project 3 findings into automatic checks: the conflict check for "Sad but Hyped" and the unknown-genre warning for "Ghost Genre." I kept these because they fix exactly the failures I had already documented in Section 6, and Future Work #2 had asked for the genre warning.
+
+**A suggestion I rejected:** an artist-diversity cap (at most one song per artist in a list). The AI proposed it to reduce filter bubbles, but in this catalog it would have pushed *Focus Flow* (LoRoom) out of the Chill Lofi list, even though it's a real lofi match. The "loud pack" bubble I found in Project 3 comes from energy, not from repeated artists, so the cap would have made results worse without fixing the actual problem.
+
+## 16. Portfolio Reflection: What This Project Says About Me as an AI Engineer
+
+I care about whether an AI system deserves trust, not just whether it produces output. In this project I turned the failures I had documented in my own earlier work into guardrails, a confidence score, an abstain option, and an evaluation harness. I also kept a failing test in the final scorecard instead of hiding it, because a system that is 91% confident and wrong is exactly what I want to learn to catch. I want to build tools that explain their decisions, say "I'm not sure" when they should, and come with evidence that anyone can rerun.
+
+**Code:** https://github.com/Cintraa/applied-ai-system-final

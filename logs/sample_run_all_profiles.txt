@@ -1,0 +1,202 @@
+Loaded songs: 20
+
+================================================================
+Profile: Default Pop/Happy
+Prefs:   genre=pop | mood=happy | energy=0.80
+Status:  OK   Confidence: 0.91
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Sunrise City - Neon Echo                    Score: 4.47 / 4.50
+      - genre match: pop (+2.00)
+      - mood match: happy (+1.00)
+      - energy 0.82 vs target 0.80 (+1.47)
+#2  Gym Hero - Max Pulse                        Score: 3.31 / 4.50
+      - genre match: pop (+2.00)
+      - energy 0.93 vs target 0.80 (+1.30)
+#3  Rooftop Lights - Indigo Parade              Score: 2.44 / 4.50
+      - mood match: happy (+1.00)
+      - energy 0.76 vs target 0.80 (+1.44)
+#4  Fuego Lento - Los Satelites                 Score: 1.50 / 4.50
+      - energy 0.80 vs target 0.80 (+1.50)
+#5  Concrete Verses - Blockline                 Score: 1.47 / 4.50
+      - energy 0.78 vs target 0.80 (+1.47)
+
+================================================================
+Profile: High-Energy Pop
+Prefs:   genre=pop | mood=intense | energy=0.95 | likes_acoustic=False
+Status:  OK   Confidence: 0.92
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Gym Hero - Max Pulse                        Score: 4.95 / 5.00
+      - genre match: pop (+2.00)
+      - mood match: intense (+1.00)
+      - energy 0.93 vs target 0.95 (+1.47)
+      - produced/electronic sound fit (+0.47)
+#2  Sunrise City - Neon Echo                    Score: 3.71 / 5.00
+      - genre match: pop (+2.00)
+      - energy 0.82 vs target 0.95 (+1.30)
+      - produced/electronic sound fit (+0.41)
+#3  Storm Runner - Voltline                     Score: 2.89 / 5.00
+      - mood match: intense (+1.00)
+      - energy 0.91 vs target 0.95 (+1.44)
+      - produced/electronic sound fit (+0.45)
+#4  Pulse Reactor - KYRO                        Score: 1.99 / 5.00
+      - energy 0.95 vs target 0.95 (+1.50)
+      - produced/electronic sound fit (+0.49)
+#5  Iron Cathedral - Grave Signal               Score: 1.96 / 5.00
+      - energy 0.97 vs target 0.95 (+1.47)
+      - produced/electronic sound fit (+0.48)
+
+================================================================
+Profile: Chill Lofi
+Prefs:   genre=lofi | mood=chill | energy=0.35 | likes_acoustic=True
+Status:  OK   Confidence: 0.94
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Library Rain - Paper Lanterns               Score: 4.93 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.35 vs target 0.35 (+1.50)
+      - acoustic sound fit (+0.43)
+#2  Midnight Coding - LoRoom                    Score: 4.75 / 5.00
+      - genre match: lofi (+2.00)
+      - mood match: chill (+1.00)
+      - energy 0.42 vs target 0.35 (+1.40)
+      - acoustic sound fit (+0.35)
+#3  Focus Flow - LoRoom                         Score: 3.81 / 5.00
+      - genre match: lofi (+2.00)
+      - energy 0.40 vs target 0.35 (+1.42)
+      - acoustic sound fit (+0.39)
+#4  Spacewalk Thoughts - Orbit Bloom            Score: 2.85 / 5.00
+      - mood match: chill (+1.00)
+      - energy 0.28 vs target 0.35 (+1.40)
+      - acoustic sound fit (+0.46)
+#5  Coffee Shop Stories - Slow Stereo           Score: 1.92 / 5.00
+      - energy 0.37 vs target 0.35 (+1.47)
+      - acoustic sound fit (+0.45)
+
+================================================================
+Profile: Deep Intense Rock
+Prefs:   genre=rock | mood=intense | energy=0.90 | likes_acoustic=False
+Status:  OK   Confidence: 0.90
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Storm Runner - Voltline                     Score: 4.93 / 5.00
+      - genre match: rock (+2.00)
+      - mood match: intense (+1.00)
+      - energy 0.91 vs target 0.90 (+1.48)
+      - produced/electronic sound fit (+0.45)
+#2  Gym Hero - Max Pulse                        Score: 2.93 / 5.00
+      - mood match: intense (+1.00)
+      - energy 0.93 vs target 0.90 (+1.46)
+      - produced/electronic sound fit (+0.47)
+#3  Pulse Reactor - KYRO                        Score: 1.92 / 5.00
+      - energy 0.95 vs target 0.90 (+1.43)
+      - produced/electronic sound fit (+0.49)
+#4  Iron Cathedral - Grave Signal               Score: 1.88 / 5.00
+      - energy 0.97 vs target 0.90 (+1.40)
+      - produced/electronic sound fit (+0.48)
+#5  Sunrise City - Neon Echo                    Score: 1.79 / 5.00
+      - energy 0.82 vs target 0.90 (+1.38)
+      - produced/electronic sound fit (+0.41)
+
+================================================================
+Profile: Sad but Hyped (conflict)
+Prefs:   genre=folk | mood=sad | energy=0.90
+Status:  LOW_CONFIDENCE   Confidence: 0.78
+         Weak or conflicting match. Treat these as suggestions, not picks.
+  ! preferences conflict: #1 'Paper Boats' matches your labels but its energy 0.30 is 0.60 away from your target 0.90
+----------------------------------------------------------------
+#1  Paper Boats - The Quiet Pines               Score: 3.60 / 4.50
+      - genre match: folk (+2.00)
+      - mood match: sad (+1.00)
+      - energy 0.30 vs target 0.90 (+0.60)
+#2  Storm Runner - Voltline                     Score: 1.49 / 4.50
+      - energy 0.91 vs target 0.90 (+1.48)
+#3  Gym Hero - Max Pulse                        Score: 1.46 / 4.50
+      - energy 0.93 vs target 0.90 (+1.46)
+#4  Pulse Reactor - KYRO                        Score: 1.43 / 4.50
+      - energy 0.95 vs target 0.90 (+1.43)
+#5  Iron Cathedral - Grave Signal               Score: 1.40 / 4.50
+      - energy 0.97 vs target 0.90 (+1.40)
+
+================================================================
+Profile: Ghost Genre (k-pop)
+Prefs:   genre=k-pop | mood=happy | energy=0.70
+Status:  LOW_CONFIDENCE   Confidence: 0.50
+         Weak or conflicting match. Treat these as suggestions, not picks.
+  ! genre 'k-pop' is not in the catalog, so no song can earn genre points
+----------------------------------------------------------------
+#1  Rooftop Lights - Indigo Parade              Score: 2.41 / 4.50
+      - mood match: happy (+1.00)
+      - energy 0.76 vs target 0.70 (+1.41)
+#2  Sunrise City - Neon Echo                    Score: 2.32 / 4.50
+      - mood match: happy (+1.00)
+      - energy 0.82 vs target 0.70 (+1.32)
+#3  Night Drive Loop - Neon Echo                Score: 1.43 / 4.50
+      - energy 0.75 vs target 0.70 (+1.42)
+#4  Concrete Verses - Blockline                 Score: 1.38 / 4.50
+      - energy 0.78 vs target 0.70 (+1.38)
+#5  Fuego Lento - Los Satelites                 Score: 1.35 / 4.50
+      - energy 0.80 vs target 0.70 (+1.35)
+
+================================================================
+Profile: Acoustic Metalhead
+Prefs:   genre=metal | mood=angry | energy=0.95 | likes_acoustic=True
+Status:  OK   Confidence: 0.83
+         Recommendations ready.
+----------------------------------------------------------------
+#1  Iron Cathedral - Grave Signal               Score: 4.49 / 5.00
+      - genre match: metal (+2.00)
+      - mood match: angry (+1.00)
+      - energy 0.97 vs target 0.95 (+1.47)
+      - acoustic sound fit (+0.01)
+#2  Pulse Reactor - KYRO                        Score: 1.51 / 5.00
+      - energy 0.95 vs target 0.95 (+1.50)
+      - acoustic sound fit (+0.01)
+#3  Gym Hero - Max Pulse                        Score: 1.50 / 5.00
+      - energy 0.93 vs target 0.95 (+1.47)
+      - acoustic sound fit (+0.03)
+#4  Storm Runner - Voltline                     Score: 1.49 / 5.00
+      - energy 0.91 vs target 0.95 (+1.44)
+      - acoustic sound fit (+0.05)
+#5  Fuego Lento - Los Satelites                 Score: 1.40 / 5.00
+      - energy 0.80 vs target 0.95 (+1.28)
+      - acoustic sound fit (+0.12)
+
+================================================================
+Profile: Dead Center (energy only)
+Prefs:   energy=0.50
+Status:  OK   Confidence: 0.83
+         Recommendations ready.
+  ! no genre or mood given, so the list is ranked by energy alone
+----------------------------------------------------------------
+#1  Island Time - Sol Harbor                    Score: 1.47 / 1.50
+      - energy 0.52 vs target 0.50 (+1.47)
+#2  Velvet Hours - Amara Lane                   Score: 1.47 / 1.50
+      - energy 0.48 vs target 0.50 (+1.47)
+#3  Dusty Backroads - Wren Holloway             Score: 1.43 / 1.50
+      - energy 0.55 vs target 0.50 (+1.42)
+#4  Midnight Coding - LoRoom                    Score: 1.38 / 1.50
+      - energy 0.42 vs target 0.50 (+1.38)
+#5  Focus Flow - LoRoom                         Score: 1.35 / 1.50
+      - energy 0.40 vs target 0.50 (+1.35)
+
+================================================================
+Profile: Nonsense Taste (polka/spooky)
+Prefs:   genre=polka | mood=spooky | energy=0.50
+Status:  ABSTAINED   Confidence: 0.23
+         Not confident enough to recommend anything. Try a genre or mood from the catalog.
+  ! genre 'polka' is not in the catalog, so no song can earn genre points
+  ! mood 'spooky' is not in the catalog, so no song can earn mood points
+----------------------------------------------------------------
+  (no songs returned)
+
+================================================================
+Profile: Broken Input (energy 1.7)
+Prefs:   genre=pop | mood=happy | energy=1.70
+Status:  REJECTED   Confidence: 0.00
+         Request rejected: energy must be between 0 and 1, got 1.7
+----------------------------------------------------------------
+  (no songs returned)
+
